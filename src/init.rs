@@ -1,7 +1,9 @@
 use clap::Parser;
+use tracing::instrument;
 
 use crate::Cli;
 
+#[instrument(ret, level = "debug")]
 pub fn init() -> Cli {
     {
         color_eyre::install().unwrap();
