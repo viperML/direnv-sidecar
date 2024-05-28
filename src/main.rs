@@ -1,6 +1,6 @@
+mod client;
 mod init;
 mod server;
-mod client;
 
 use clap::Parser;
 use tracing::debug;
@@ -12,7 +12,7 @@ enum Cli {
         #[arg(short, long)]
         shell: clap_complete::Shell,
     },
-    Start(crate::client::StartArgs)
+    Start(crate::client::StartArgs),
 }
 
 #[tokio::main]
@@ -25,7 +25,7 @@ async fn main() -> eyre::Result<()> {
             clap_complete::generate(shell, &mut cmd, "direnv-sidecar", &mut std::io::stdout());
             Ok(())
         }
-        Cli::Server => todo!(),
+        Cli::Server => crate::server::run().await,
         Cli::Start(args) => args.run(),
     }
 }

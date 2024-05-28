@@ -2,6 +2,8 @@ use std::ffi::OsString;
 
 use clap::Args;
 use clap::ValueHint;
+use nix::unistd::getppid;
+use tracing::debug;
 
 #[derive(Debug, Args)]
 pub struct StartArgs {
@@ -11,6 +13,9 @@ pub struct StartArgs {
 
 impl StartArgs {
     pub fn run(self) -> eyre::Result<()> {
+        let ppid = getppid();
+        debug!(?ppid);
+
         Ok(())
     }
 }
