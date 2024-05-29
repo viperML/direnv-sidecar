@@ -1,3 +1,5 @@
+#![deny(unsafe_op_in_unsafe_fn)]
+
 mod client;
 mod init;
 mod server;
@@ -26,6 +28,6 @@ async fn main() -> eyre::Result<()> {
             Ok(())
         }
         Cli::Server => crate::server::run().await,
-        Cli::Start(args) => args.run(),
+        Cli::Start(args) => args.run().await,
     }
 }
