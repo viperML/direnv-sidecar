@@ -6,13 +6,23 @@ use std::{
 
 use libc::{pid_t, syscall, SYS_pidfd_open};
 use nix::errno::Errno;
+use serde::{Deserialize, Serialize};
 use tokio::io::unix::AsyncFd;
 use tracing::{debug, instrument};
-use zbus::{conn, interface, Connection, ObjectServer};
+use zbus::{
+    conn, interface, proxy,
+    zvariant::{DeserializeDict, SerializeDict, Type},
+    Connection, ObjectServer,
+};
 
 #[derive(Debug, Default)]
 struct Server {
-    services: Arc<Mutex<HashMap<pid_t, ()>>>,
+    services: Arc<Mutex<HashMap<pid_t, ClientInfo>>>,
+}
+
+#[derive(Debug)]
+struct ClientInfo {
+    direnv_diff: String,
 }
 
 unsafe fn pidfd_open(process: pid_t) -> nix::Result<OwnedFd> {
@@ -32,29 +42,42 @@ async fn wait(pid: pid_t) -> eyre::Result<()> {
     Ok(())
 }
 
+#[derive(Debug, DeserializeDict, SerializeDict, Type)]
+#[zvariant(signature = "a{sv}")]
+pub struct Data {
+    pub pid: pid_t,
+    pub direnv_diff: String,
+}
+
+#[derive(Debug, SerializeDict, DeserializeDict, Type)]
+#[zvariant(signature = "a{sv}")]
+pub struct Response {}
+
 #[interface(name = "net.direnv.Sidecar")]
 impl Server {
     #[instrument(level = "debug", skip(self))]
-    fn register(&self, pid: pid_t) {
-        let already_present = {
-            let mut g = self.services.lock().unwrap();
-            g.insert(pid, ()).is_some()
-        };
+    fn register(&self, data: Data) -> Response {
+        debug!(?data);
+        // let already_present = {
+        //     let mut g = self.services.lock().unwrap();
+        //     g.insert(pid, ClientInfo { direnv_diff }).is_some()
+        // };
 
-        // self.services.insert(pid, ());
-        debug!(?self);
+        // // self.services.insert(pid, ());
+        // debug!(?self);
 
-        if !already_present {
-            let services = self.services.clone();
-            tokio::spawn(async move {
-                wait(pid).await.unwrap();
-                {
-                    let mut g = services.lock().unwrap();
-                    g.remove(&pid);
-                }
-                debug!(?pid, "finished");
-            });
-        }
+        // if !already_present {
+        //     let services = self.services.clone();
+        //     tokio::spawn(async move {
+        //         wait(pid).await.unwrap();
+        //         {
+        //             let mut g = services.lock().unwrap();
+        //             g.remove(&pid);
+        //         }
+        //         debug!(?pid, "finished");
+        //     });
+        // }
+        Response{}
     }
 }
 

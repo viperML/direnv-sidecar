@@ -465,6 +465,7 @@ dependencies = [
  "libc",
  "nix 0.29.0",
  "procfs",
+ "serde",
  "tokio",
  "tracing",
  "tracing-error",

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ffi::OsString;
 use std::fs::File;
 use std::io;
@@ -15,9 +16,16 @@ use nix::unistd::getpid;
 use nix::unistd::getppid;
 use procfs::process::Process;
 use procfs::ProcResult;
+use serde::Serialize;
 use tokio::io::unix::AsyncFd;
 use tracing::{debug, trace};
+use zbus::proxy;
+use zbus::zvariant::DynamicType;
+use zbus::zvariant::Type;
+use zbus::zvariant::Value;
 use zbus::Connection;
+
+use crate::server::Data;
 
 #[derive(Debug, Args)]
 pub struct StartArgs {
@@ -44,29 +52,30 @@ fn direnv_parent() -> ProcResult<Process> {
     Ok(proc)
 }
 
+#[proxy(
+    interface = "net.direnv.Sidecar",
+    default_service = "net.direnv.Sidecar",
+    default_path = "/net/direnv/Sidecar"
+)]
+trait Sidecar {
+    fn register(&self, data: crate::server::Data) -> zbus::Result<crate::server::Response>;
+}
+
 /// https://man7.org/linux/man-pages/man2/pidfd_open.2.html
 impl StartArgs {
     pub async fn run(self) -> eyre::Result<()> {
         let parent = direnv_parent()?;
         debug!(?parent);
 
-        // let pid: pid_t = 37634;
-
-        // debug!("waiting pid!");
-        // wait(pid).await?;
-
         let connection = Connection::session().await?;
-        let resp = connection
-            .call_method(
-                Some("net.direnv.Sidecar"),
-                "/net/direnv/Sidecar",
-                Some("net.direnv.Sidecar"),
-                "Register",
-                &(parent.pid),
-            )
-            .await?;
-        debug!(?resp);
 
+        let proxy = SidecarProxy::new(&connection).await?;
+        proxy
+            .register(Data {
+                pid: parent.pid,
+                direnv_diff: String::from(""),
+            })
+            .await?;
 
         Ok(())
     }
